@@ -6,7 +6,7 @@ use std::path::Path;
 use std::io::Read;
 
 #[cfg(feature = "d-mysql")]
-use mysql::{self, Conn};
+use mysql::{self, Conn, Opts, OptsBuilder, consts::CapabilityFlags};
 
 #[cfg(not(feature = "d-mysql"))]
 use serde;
@@ -295,7 +295,11 @@ pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     let mut buf = String::new();
     file.read_to_string(&mut buf)?;
 
-    let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
+    let opts: Opts = conn_str.into();
+    let mut opts = OptsBuilder::from_opts(opts);
+    opts.additional_capabilities(CapabilityFlags::CLIENT_MULTI_STATEMENTS);
+
+    let mut conn = Conn::new(opts).chain_err(|| "Connection Error")?;
     conn.query(&buf)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     Ok(())
